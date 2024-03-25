@@ -52,11 +52,13 @@ private:
 // pointer `this' may change after wakeup. The **pg parameters in following
 // function are updated before returning.
 class TaskGroup {
+    //每个taskgroup对应一个pthread
 public:
     // Create task `fn(arg)' with attributes `attr' in TaskGroup *pg and put
     // the identifier into `tid'. Switch to the new task and schedule old task
     // to run.
     // Return 0 on success, errno otherwise.
+    // 在前台创建一个bthread，并立即执行bthread的逻辑；
     static int start_foreground(TaskGroup** pg,
                                 bthread_t* __restrict tid,
                                 const bthread_attr_t* __restrict attr,
@@ -247,7 +249,12 @@ friend class TaskControl;
     size_t _steal_offset;
     ContextualStack* _main_stack;
     bthread_t _main_tid;
+
+    // 每个taskgroup都有一个runqueue,和remote_run_queue，里面放着的是待执行的bthread
+    //单生产者多消费者的队列
     WorkStealingQueue<bthread_t> _rq;
+    // 多生产者多消费者的队列
+    // 调度的优先级：run_queue > remote_run_queue > 其他TaskGroup的run_queue > 其他TaskGroup的remote_run_queue。
     RemoteTaskQueue _remote_rq;
     int _remote_num_nosignal;
     int _remote_nsignaled;

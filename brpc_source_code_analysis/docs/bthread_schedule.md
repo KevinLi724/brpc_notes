@@ -174,6 +174,7 @@
 
    ```c++
    void TaskGroup::task_runner() {
+    //从taskgroup获取当前执行bthread的执行元信息.
      TaskMeta* const m = g->_cur_meta;
      // 执行应用程序设置的任务函数，在任务函数中可能yield让出cpu，也可能产生新的bthread。
      m->fn(m->arg);
@@ -188,4 +189,24 @@
    
 5. 一个bthread在自己的任务函数执行过程中想要挂起时，调用TaskGroup::yield(TaskGroup** pg)，yield()内部会调用TaskGroup::sched(TaskGroup** pg)，sched()也是负责将pthread的执行流转入下一个bthread（普通bthread或调度bthread）的任务函数。挂起的bthread在适当的时候会被其他bthread唤醒，即某个bthread会负责将挂起的bthread的tid重新加入TaskGroup的任务队列。
    
+   ```c++
+   void TaskGroup::yield(TaskGroup** pg) {
+    // 当前执行的bthread主动调用了yield，pthread将调度执行其他的bthread或者调度bthread的任务.
+    sched(pg);
+    // 就是从本地队列和远程队列找是否有要执行的bthread，没有的话，就转为调度bthread的状态。
+   }
+   ```
 6. 一个bthread 1在自己的任务函数执行过程中需要创建新的bthread 2时，会调用TaskGroup::start_foreground()，在start_foreground()内完成bthread 2的TaskMeta对象的创建，并调用sched_to()让pthread去执行bthread 2的任务函数。pthread在真正执行bthread 2的任务函数前会将bthread 1的tid重新压入TaskGroup的任务队列，bthread 1不久之后会再次被调度执行。
+
+   ```c++
+   void TaskGroup::task_runner() {
+    //从taskgroup获取当前执行bthread的执行元信息.
+     TaskMeta* const m = g->_cur_meta;
+     // 执行应用程序设置的任务函数，在任务函数中可能yield让出cpu，也可能产生新的bthread。
+     m->fn(m->arg);
+     // 任务函数执行完成后，需要唤起等待该任务函数执行结束的pthread/bthread。
+     butex_wake_except(m->version_butex, 0);
+     // 将pthread线程执行流转入下一个可执行的bthread（普通bthread或pthread的调度bthread）。
+     ending_sched(&g);
+   }
+   ```

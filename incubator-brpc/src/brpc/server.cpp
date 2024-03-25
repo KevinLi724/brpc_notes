@@ -655,7 +655,7 @@ static void* BthreadInitEntry(void* void_args) {
     while (!args->stop) {
         bthread_usleep(1000);
     }
-    return NULL;
+    return NULL;  
 }
 
 struct RevertServerStatus {
@@ -699,6 +699,9 @@ static bool CreateConcurrencyLimiter(const AdaptiveMaxConcurrency& amc,
 
 static AdaptiveMaxConcurrency g_default_max_concurrency_of_method(0);
 
+/**
+启动rpc服务的方法
+*/
 int Server::StartInternal(const butil::ip_t& ip,
                           const PortRange& port_range,
                           const ServerOptions *opt) {
@@ -709,6 +712,7 @@ int Server::StartInternal(const butil::ip_t& ip,
             "fix it before starting server";
         return -1;
     }
+    // 初始化失败退出服务
     if (InitializeOnce() != 0) {
         LOG(ERROR) << "Fail to initialize Server[" << version() << ']';
         return -1;
@@ -724,6 +728,7 @@ int Server::StartInternal(const butil::ip_t& ip,
         }
         return -1;
     }
+    // 准备服务启动前的相关配置参数
     if (opt) {
         _options = *opt;
     } else {
@@ -806,6 +811,7 @@ int Server::StartInternal(const butil::ip_t& ip,
         _tl_options = ThreadLocalOptions();
     }
 
+    // 启动bthread
     if (_options.bthread_init_count != 0 &&
         _options.bthread_init_fn != NULL) {
         // Create some special bthreads to call the init functions. The
@@ -880,6 +886,7 @@ int Server::StartInternal(const butil::ip_t& ip,
 
     _concurrency = 0;
 
+    // 注册内部服务
     if (_options.has_builtin_services &&
         _builtin_service_count <= 0 &&
         AddBuiltinServices() != 0) {
@@ -1003,12 +1010,15 @@ int Server::StartInternal(const butil::ip_t& ip,
         }
         butil::EndPoint internal_point = _listen_addr;
         internal_point.port = _options.internal_port;
+
+        // 监听端口
         butil::fd_guard sockfd(tcp_listen(internal_point));
         if (sockfd < 0) {
             LOG(ERROR) << "Fail to listen " << internal_point << " (internal)";
             return -1;
         }
         if (NULL == _internal_am) {
+            // 创建一个监听器
             _internal_am = BuildAcceptor();
             if (NULL == _internal_am) {
                 LOG(ERROR) << "Fail to build internal acceptor";
@@ -1016,6 +1026,7 @@ int Server::StartInternal(const butil::ip_t& ip,
             }
         }
         // Pass ownership of `sockfd' to `_internal_am'
+        // 开启协程，创建epoll_create，接受客户端的连接和请求
         if (_internal_am->StartAccept(sockfd, _options.idle_timeout_sec,
                                       _default_ssl_ctx) != 0) {
             LOG(ERROR) << "Fail to start internal_acceptor";
@@ -1161,6 +1172,8 @@ int Server::Join() {
     return 0;
 }
 
+// 注册用户定义的服务，所有的addService底层都是调用的AddServiceInternal
+//is_builtin_service 标记是否是内部服务
 int Server::AddServiceInternal(google::protobuf::Service* service,
                                bool is_builtin_service,
                                const ServiceOptions& svc_opt) {
@@ -1174,7 +1187,8 @@ int Server::AddServiceInternal(google::protobuf::Service* service,
                    << " does not have any method.";
         return -1;
     }
-
+    
+    //初始化server
     if (InitializeOnce() != 0) {
         LOG(ERROR) << "Fail to initialize Server[" << version() << ']';
         return -1;

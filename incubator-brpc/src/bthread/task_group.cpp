@@ -276,6 +276,7 @@ void TaskGroup::task_runner(intptr_t skip_remained) {
         // abnormally.
 
         // Meta and identifier of the task is persistent in this run.
+    
         TaskMeta* const m = g->_cur_meta;
 
         if (FLAGS_show_bthread_creation_in_vars) {
@@ -336,6 +337,7 @@ void TaskGroup::task_runner(intptr_t skip_remained) {
 
         g->_control->_nbthreads << -1;
         g->set_remained(TaskGroup::_release_last_context, m);
+        //至此，当前执行的bthread函数执行完毕，pthread会从队列中获取新的bthread继续执行。
         ending_sched(&g);
 
     } while (g->_cur_meta->tid != g->_main_tid);
@@ -518,6 +520,7 @@ void TaskGroup::ending_sched(TaskGroup** pg) {
 #endif
     if (!popped && !g->steal_task(&next_tid)) {
         // Jump to main task if there's no task to run.
+        // 本地队列和远程队列都没有要执行的任务，且回到调度bthread的任务。
         next_tid = g->_main_tid;
     }
 
@@ -885,6 +888,7 @@ void TaskGroup::yield(TaskGroup** pg) {
     TaskGroup* g = *pg;
     ReadyToRunArgs args = { g->current_tid(), false };
     g->set_remained(ready_to_run_in_worker, &args);
+
     sched(pg);
 }
 

@@ -1,4 +1,5 @@
 # 概述
+参考文献：http://47.241.45.216/2022/07/26/brpc-execution-queue/
 
 类似于kylin的ExecMan, [ExecutionQueue](https://github.com/brpc/brpc/blob/master/src/bthread/execution_queue.h)提供了异步串行执行的功能。ExecutionQueue的相关技术最早使用在RPC中实现[多线程向同一个fd写数据](io.md#发消息). 在r31345之后加入到bthread。 ExecutionQueue 提供了如下基本功能:
 
